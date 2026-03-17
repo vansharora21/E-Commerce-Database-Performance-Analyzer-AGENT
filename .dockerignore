@@ -1,0 +1,14 @@
+.git
+.gitignore
+.env
+__pycache__/
+*.pyc
+venv/
+.venv/
+env/
+.vscode/
+logs/
+Dockerfile
+render.yaml
+Procfile
+runtime.txt

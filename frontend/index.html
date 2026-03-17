@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agentic AI — Sales & DB Insight | Fashion Analytics</title>
+    <meta name="description"
+        content="AI-powered business intelligence for fashion e-commerce. Ask natural language questions and get instant structured insights." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+    <!-- ── Background particles ── -->
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+
+    <!-- ── SIDEBAR ── -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <div class="logo-icon">⚡</div>
+                <div class="logo-text">
+                    <span class="logo-title">InsightAI</span>
+                    <span class="logo-sub">Fashion Analytics</span>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <span class="nav-label">Quick Questions</span>
+            <div id="sample-questions" class="sample-questions">
+                <div class="question-skeleton"></div>
+                <div class="question-skeleton"></div>
+                <div class="question-skeleton"></div>
+            </div>
+        </nav>
+
+        <div class="sidebar-section">
+            <span class="nav-label">Recent</span>
+            <div id="history-list" class="history-list">
+                <p class="empty-state-small">No queries yet</p>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text">Checking connection…</span>
+        </div>
+    </aside>
+
+    <!-- ── MAIN ── -->
+    <main class="main" id="main">
+
+        <!-- Top bar -->
+        <header class="topbar">
+            <button class="menu-btn" id="menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="topbar-title">
+                <h1>Sales & DB Insight Agent</h1>
+                <span class="topbar-badge">BETA</span>
+            </div>
+            <div class="topbar-right">
+                <div class="api-key-group">
+                    <label for="api-key-input">Admin Key</label>
+                    <input type="password" id="api-key-input" placeholder="X-Admin-Key" value="VANSH2323" />
+                </div>
+            </div>
+        </header>
+
+        <!-- Hero banner (visible before first query) -->
+        <div class="hero" id="hero">
+            <div class="hero-icon">🤖</div>
+            <h2 class="hero-title">Ask anything about your business</h2>
+            <p class="hero-subtitle">
+                Powered by Gemini AI + MongoDB — get instant, explainable insights<br />
+                from your live fashion e-commerce data.
+            </p>
+            <div class="hero-chips">
+                <span class="chip" onclick="useQuestion(this)">Revenue this week</span>
+                <span class="chip" onclick="useQuestion(this)">Top 5 products</span>
+                <span class="chip" onclick="useQuestion(this)">Pending orders today</span>
+                <span class="chip" onclick="useQuestion(this)">Payment methods breakdown</span>
+                <span class="chip" onclick="useQuestion(this)">New customers this month</span>
+                <span class="chip" onclick="useQuestion(this)">Compare this week vs last week</span>
+            </div>
+        </div>
+
+        <!-- Results area -->
+        <div class="results-area" id="results-area"></div>
+
+        <!-- Query input -->
+        <div class="input-area">
+            <div class="input-wrapper">
+                <span class="input-icon">💬</span>
+                <textarea id="question-input" class="question-input"
+                    placeholder="Ask a business question… e.g. 'How much revenue did we generate this month?'" rows="1"
+                    onkeydown="handleKeydown(event)" oninput="autoResize(this)"></textarea>
+                <button class="send-btn" id="send-btn" onclick="submitQuestion()">
+                    <span id="send-icon">➤</span>
+                </button>
+            </div>
+            <p class="input-hint">Press Enter to send · Shift+Enter for new line · Results are read-only</p>
+        </div>
+
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>
