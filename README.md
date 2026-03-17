@@ -1,4 +1,4 @@
-# 🧠 InsightAI — Agentic AI Sales & Database Insight System
+# 🧠 E-Commerce Database Performance Analyzer Agent
 
 <div align="center">
 
@@ -10,7 +10,7 @@
 
 **A production-ready Agentic AI that understands natural language, queries your MongoDB database safely, and delivers real-time business insights — with full conversation memory.**
 
-[Live Demo](#-deployment) · [API Docs](#-api-reference) · [Architecture](#-architecture) · [Scaling](#-scaling-guide)
+[API Docs](#-api-reference) · [Architecture](#-architecture) · [Scaling](#-scaling-guide)
 
 </div>
 
@@ -18,7 +18,7 @@
 
 ## ✨ What It Does
 
-Ask plain English questions about your e-commerce business. InsightAI plans and executes safe read-only database queries, then generates structured insights with metrics, trends, and actionable recommendations.
+Ask plain English questions about your e-commerce business. The AI Agent plans and executes safe read-only database queries, then generates structured insights with metrics, trends, and actionable recommendations.
 
 ```
 "How much revenue did we generate this month?"
@@ -107,8 +107,8 @@ Ask plain English questions about your e-commerce business. InsightAI plans and 
 
 ### 1. Clone & Install
 ```bash
-git clone https://github.com/yourname/insightai
-cd insightai
+git clone https://github.com/vansharora21/E-Commerce-Database-Performance-Analyzer-AGENT.git
+cd E-Commerce-Database-Performance-Analyzer-AGENT
 pip install -r requirements.txt
 ```
 
@@ -150,7 +150,7 @@ Open **http://localhost:8000** — dashboard loads instantly.
 ## 📦 Project Structure
 
 ```
-insightai/
+.
 ├── main.py                        # FastAPI app entry point
 ├── requirements.txt
 ├── .env                           # Your secrets (never commit this)
@@ -189,44 +189,20 @@ insightai/
 
 ---
 
-## 🌐 Deployment
+## 🌐 Deployment (Fast & Free)
 
-### Option 1 — Railway ⭐ (Recommended, $5/mo)
+### Option 1 — Koyeb 🔥 (Best Free Tier, No Sleeping)
+Koyeb provides an always-on free tier that perfectly supports Python deployments without 30s cold starts.
 
-**Easiest. Auto-detects Python. Free trial available.**
-
-1. Install Railway CLI: `npm install -g @railway/cli`
-2. Create `Procfile`:
-   ```
-   web: uvicorn main:app --host 0.0.0.0 --port $PORT
-   ```
-3. Deploy:
-   ```bash
-   railway login
-   railway init
-   railway up
-   ```
-4. Set env vars in Railway dashboard (all your `.env` values)
-5. Your app is live at `https://your-app.railway.app`
+1. Go to [Koyeb.com](https://www.koyeb.com/)
+2. Create an App and connect your GitHub repository
+3. Koyeb will automatically detect the `Dockerfile` in this repo
+4. Add your `.env` variables under the Environment Variables section
+5. Deploy (your app will be live 24/7 on the free tier)
 
 ---
 
-### Option 2 — Render (Free tier available)
-
-1. Push code to GitHub
-2. Go to [render.com](https://render.com) → New Web Service → Connect repo
-3. Settings:
-   - **Runtime**: Python 3
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-4. Add all environment variables from `.env`
-5. Deploy → live at `https://your-app.onrender.com`
-
-> ⚠️ Free tier spins down after 15min inactivity (cold start ~30s). Upgrade to Starter ($7/mo) for always-on.
-
----
-
-### Option 3 — Fly.io (Free tier, global edge)
+### Option 2 — Fly.io (Low Latency Edge)
 
 ```bash
 # Install flyctl
@@ -234,9 +210,8 @@ curl -L https://fly.io/install.sh | sh
 
 # Create app
 fly auth login
-fly launch --name insightai --region sin   # Singapore for low India latency
+fly launch --name ecommerce-agent --region sin   # Singapore for low India latency
 
-# Create fly.toml (auto-generated, tweak if needed)
 # Set secrets
 fly secrets set GROQ_API_KEY=gsk_xxx MONGODB_URI=mongodb+srv://... ADMIN_API_KEY=xxx LLM_PROVIDER=groq
 
@@ -244,31 +219,22 @@ fly secrets set GROQ_API_KEY=gsk_xxx MONGODB_URI=mongodb+srv://... ADMIN_API_KEY
 fly deploy
 ```
 
-Add a `Dockerfile`:
-```dockerfile
-FROM python:3.11-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-EXPOSE 8080
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
-```
+*(Note: If using Railway or Render free tiers, expect the server to sleep after 15 mins of inactivity, resulting in a 30-60 second cold start on the first request).*
 
 ---
 
-### Option 4 — Docker (Self-host / VPS)
+### Option 3 — Docker (Self-host / VPS)
 
 ```bash
 # Build
-docker build -t insightai .
+docker build -t ecommerce-agent .
 
 # Run
 docker run -d \
-  --name insightai \
+  --name ecommerce-agent \
   -p 8000:8000 \
   --env-file .env \
-  insightai
+  ecommerce-agent
 ```
 
 For **Nginx reverse proxy** on a ₹500/mo VPS (DigitalOcean, Hetzner, Hostinger):
@@ -284,35 +250,6 @@ server {
     }
 }
 ```
-
----
-
-### Option 5 — Google Cloud Run (Serverless, scale to zero)
-
-```bash
-# Build and push to Google Container Registry
-gcloud builds submit --tag gcr.io/YOUR_PROJECT/insightai
-
-# Deploy
-gcloud run deploy insightai \
-  --image gcr.io/YOUR_PROJECT/insightai \
-  --platform managed \
-  --region asia-south1 \
-  --allow-unauthenticated \
-  --set-env-vars GROQ_API_KEY=xxx,MONGODB_URI=xxx,ADMIN_API_KEY=xxx,LLM_PROVIDER=groq
-```
-Pay per request, scales to zero when idle. **Great for portfolio demos.**
-
----
-
-### Option 6 — AWS EC2 / Elastic Beanstalk
-
-For teams requiring AWS infrastructure:
-1. Launch EC2 `t3.micro` (free tier)
-2. SSH in, install Python 3.11, clone repo
-3. Install dependencies, configure `.env`
-4. Use `systemd` or `supervisor` to keep the process alive
-5. Point Route53 domain to your EC2 IP
 
 ---
 
@@ -389,46 +326,6 @@ gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
    ```
 
 5. Use **Groq paid tier** or **Gemini 1.5 Pro** for higher throughput
-
----
-
-### Scale Layer 3 — Enterprise (50,000+ users/day)
-
-**Cost: $500+/month | Full production setup**
-
-```
-                    ┌─────────────────────────────┐
-          Users ────►   CloudFlare CDN + WAF        │
-                    └────────────┬────────────────┘
-                                 │
-                    ┌────────────▼────────────────┐
-                    │   Load Balancer (ALB/Nginx)  │
-                    └──┬──────────────────────┬───┘
-                       │                      │
-              ┌────────▼───┐         ┌────────▼───┐
-              │  API Pod 1  │         │  API Pod 2  │   (Kubernetes / ECS)
-              │  (4 workers)│         │  (4 workers)│
-              └────────┬───┘         └────────┬───┘
-                       │                      │
-              ┌────────▼──────────────────────▼───┐
-              │         Redis Cluster              │
-              │   Sessions + Query Cache + Queue   │
-              └────────────────────────────────────┘
-                       │
-              ┌────────▼──────────┐
-              │   MongoDB Atlas   │
-              │   M30 (Replica    │
-              │   Set + Read      │
-              │   Replicas)       │
-              └───────────────────┘
-```
-
-Key additions:
-- **Kubernetes (GKE / EKS)** — auto-scale API pods based on CPU/request count
-- **MongoDB Read Replicas** — analytics queries routed to secondary nodes
-- **Prometheus + Grafana** — monitor query latency, LLM costs, error rates
-- **OpenTelemetry** — distributed tracing across the 4-stage pipeline
-- **LLM Gateway** (LiteLLM / BerriAI) — manage multiple LLM providers, budgets, fallbacks centrally
 
 ---
 
@@ -570,7 +467,7 @@ python scripts/test_agent.py
 python scripts/quick_test.py
 
 # Manual API test (PowerShell)
-$headers = @{ "Content-Type"="application/json"; "X-Admin-Key"="VANSH2323" }
+$headers = @{ "Content-Type"="application/json"; "X-Admin-Key"="YOUR_API_KEY" }
 $body = '{"question":"How much revenue this month?","session_id":"test"}'
 Invoke-RestMethod -Uri "http://localhost:8000/api/ask" -Method Post -Headers $headers -Body $body
 ```
@@ -581,7 +478,7 @@ Invoke-RestMethod -Uri "http://localhost:8000/api/ask" -Method Post -Headers $he
 
 - [ ] Change `ADMIN_API_KEY` to a strong random string (`openssl rand -hex 32`)
 - [ ] Enable MongoDB Atlas IP Allowlist (only your server IP)
-- [ ] Put the API behind HTTPS (use Fly.io / Railway / Nginx + Certbot)
+- [ ] Put the API behind HTTPS
 - [ ] Set `DEBUG=false` in production
 - [ ] Rotate Groq/Gemini API keys regularly
 - [ ] Add rate limiting (see Scale Layer 2)
@@ -613,7 +510,7 @@ This project demonstrates:
 | Web Framework | FastAPI + Uvicorn |
 | Database Driver | Motor (async PyMongo) |
 | AI — Primary | Google Gemini 2.0 Flash |
-| AI — Fallback | Groq (Llama 3.3 70B) |
+| AI — Fallback | Groq |
 | Data Validation | Pydantic v2 |
 | Config | pydantic-settings |
 | Frontend | Vanilla HTML/CSS/JS |
@@ -634,5 +531,5 @@ MIT — free to use, modify, and deploy.
 *Star ⭐ the repo if you found it useful!*
 
 </div>
-#   E - C o m m e r c e - D a t a b a s e - P e r f o r m a n c e - A n a l y z e r - A G E N T  
- 
+
+# E-Commerce-Database-Performance-Analyzer-AGENT
