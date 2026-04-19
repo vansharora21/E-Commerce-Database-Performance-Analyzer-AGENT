@@ -533,3 +533,97 @@ MIT — free to use, modify, and deploy.
 </div>
 
 # E-Commerce-Database-Performance-Analyzer-AGENT
+
+---
+
+## Dual Deployment Modes (Now Enabled)
+
+This repo now supports both deployment paths:
+
+- **Mode A (current production path): FastAPI backend + existing frontend**
+- **Mode B (Python-only path): Streamlit app in `streamlit_app.py`**
+
+Use Mode A if you want to go live immediately with existing behavior.
+Use Mode B when you want a full Python-only application surface.
+
+---
+
+## Deploy Mode A: FastAPI (Backend + Existing UI)
+
+### Start command
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+### Required environment variables
+
+```env
+MONGODB_URI=...
+DB_NAME=fashion_ecommerce
+LLM_PROVIDER=groq
+GROQ_API_KEY=...
+# or
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.0-flash
+ADMIN_API_KEY=your_strong_admin_key
+HOST=0.0.0.0
+PORT=8000
+```
+
+### Quick verification
+
+1. `GET /health` should return database `connected`
+2. Open `/` and submit a question
+3. `POST /api/ask` with header `X-Admin-Key`
+
+---
+
+## Deploy Mode B: Streamlit (Python-Only App)
+
+The Streamlit app directly reuses the same agent pipeline and MongoDB config.
+
+### Local run
+
+```bash
+pip install -r requirements.txt
+streamlit run streamlit_app.py
+```
+
+### Cloud run command
+
+```bash
+streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+```
+
+### Procfile for Streamlit
+
+Use `Procfile.streamlit`:
+
+```bash
+web: streamlit run streamlit_app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
+```
+
+### Required environment variables (same as FastAPI except admin key not required by Streamlit UI)
+
+```env
+MONGODB_URI=...
+DB_NAME=fashion_ecommerce
+LLM_PROVIDER=groq
+GROQ_API_KEY=...
+# or
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.0-flash
+```
+
+### Recommended hosts for Streamlit mode
+
+1. Render (Web Service)
+2. Railway
+3. Streamlit Community Cloud (if repository is public and dependency footprint is acceptable)
+
+---
+
+## Migration Recommendation
+
+Deploy **Mode A now** for immediate availability, then deploy **Mode B** in parallel and switch traffic once validated.

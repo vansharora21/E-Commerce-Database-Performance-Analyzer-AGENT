@@ -5,10 +5,10 @@ Populates the MongoDB fashion_ecommerce database with realistic
 fake data so the agent has something to query from day one.
 
 Generates:
-  - 200 users
-  - 150 products across 5 categories
-  - 1 200 orders spanning the last 6 months
-  - 1 200 payments linked to orders
+    - 800 users
+    - 400 products across 5 categories
+    - 10 000 orders spanning the last 6 months
+    - 10 000 payments linked to orders
 
 Run: python scripts/seed_database.py
 """
@@ -36,9 +36,9 @@ MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/fashion_ecomme
 DB_NAME     = os.getenv("DB_NAME", "fashion_ecommerce")
 
 # ── Config ────────────────────────────────────────────────────────────────────
-N_USERS    = 200
-N_PRODUCTS = 150
-N_ORDERS   = 1200
+N_USERS    = int(os.getenv("SEED_USERS", "800"))
+N_PRODUCTS = int(os.getenv("SEED_PRODUCTS", "400"))
+N_ORDERS   = int(os.getenv("SEED_ORDERS", "10000"))
 
 CATEGORIES   = ["tops", "dresses", "shoes", "accessories", "bottoms"]
 BRANDS       = ["Zara", "H&M", "Mango", "FabIndia", "W", "Biba", "Vero Moda", "AND", "Avaasa", "Aurelia"]
@@ -223,6 +223,10 @@ async def seed():
     console.rule("[bold green]✅ Seeding complete!")
     console.print(f"\n[bold]Database:[/bold] {DB_NAME}")
     console.print(f"[bold]URI:[/bold]      {MONGODB_URI}")
+    console.print(f"[bold]Users:[/bold]    {N_USERS}")
+    console.print(f"[bold]Products:[/bold] {N_PRODUCTS}")
+    console.print(f"[bold]Orders:[/bold]   {N_ORDERS}")
+    console.print(f"[bold]Payments:[/bold] {N_ORDERS}")
     console.print("\nYou can now start the server: [bold cyan]python main.py[/bold cyan]\n")
 
 
