@@ -20,19 +20,31 @@ logger = logging.getLogger(__name__)
 _SYSTEM_PROMPT = """
 You are the Intent Detector for a Fashion E-Commerce Analytics Agent.
 
-Your ONLY job is to analyse the user's question and return a JSON object with
-these exact fields (no markdown, no explanation, raw JSON only):
+Your ONLY job is to analyse the user's question and return a JSON object with these exact fields (no markdown, no explanation, raw JSON only):
 
 {{
-  "intent": "<one of: revenue | order_status | product_performance | customer_insight | inventory | trend_comparison | top_n_ranking | payment_analytics | unknown>",
-  "time_period": "<one of: today | yesterday | this_week | last_week | this_month | last_month | this_year | all_time | custom>",
+  "is_compound": <true if the user's question has 2 or more sequential parts/steps like 'compare revenue this month vs last month and then find which category drove the difference', else false>,
+  "sub_intents": [
+    // If is_compound is true, list the sequential sub-intents in order of execution.
+    // If is_compound is false, this must be an empty list [].
+    // Each sub-intent has these fields:
+    {{
+      "intent": "<one of: revenue | order_status | product_performance | customer_insight | inventory | trend_comparison | top_n_ranking | payment_analytics | unknown>",
+      "time_period": "<one of: today | yesterday | this_week | last_week | this_month | last_month | this_year | all_time | custom>",
+      "entities": {{
+          // Any specific values mentioned: product_name, category, status, brand, limit (for top 5), threshold, etc.
+      }},
+      "confidence": <float 0.0-1.0>,
+      "rephrased_question": "<clean, normalised sub-question string>"
+    }}
+  ],
+  "intent": "<the main or first intent, e.g. revenue>",
+  "time_period": "<the main or first time period, e.g. this_month>",
   "entities": {{
-      // Any specific values mentioned: product_name, category, status,
-      // brand, limit (for top 5), threshold amount, etc.
-      // Use snake_case keys. Leave empty {{}} if none.
+      // Top-level entities
   }},
   "confidence": <float 0.0-1.0>,
-  "rephrased_question": "<clean, normalised English version of the question>"
+  "rephrased_question": "<overall clean version of the entire question>"
 }}
 
 Rules:
@@ -51,6 +63,27 @@ class IntentDetector:
     def __init__(self) -> None:
         self._llm = LLMClient()
 
+    def _parse_sub_intent(self, data: dict, default_question: str) -> IntentResult:
+        try:
+            intent = IntentType(data.get("intent", "unknown"))
+        except ValueError:
+            intent = IntentType.UNKNOWN
+
+        try:
+            period = TimePeriod(data.get("time_period", "this_month"))
+        except ValueError:
+            period = TimePeriod.THIS_MONTH
+
+        return IntentResult(
+            intent=intent,
+            time_period=period,
+            entities=data.get("entities", {}),
+            confidence=float(data.get("confidence", 0.5)),
+            rephrased_question=data.get("rephrased_question", default_question),
+            is_compound=False,
+            sub_intents=[]
+        )
+
     async def detect(self, question: str) -> IntentResult:
         today = datetime.utcnow().strftime("%Y-%m-%d")
         prompt = _SYSTEM_PROMPT.format(today=today, question=question)
@@ -59,9 +92,15 @@ class IntentDetector:
         raw = await self._llm.generate(prompt)
         raw = re.sub(r"^```(?:json)?\s*", "", raw.strip())
         raw = re.sub(r"\s*```$", "", raw)
-        logger.debug(f"Intent raw: {raw[:200]}")
+        logger.debug(f"Intent raw: {raw[:300]}")
 
         data = json.loads(raw)
+
+        is_compound = bool(data.get("is_compound", False))
+        sub_intents = []
+        if is_compound and isinstance(data.get("sub_intents"), list):
+            for sub_data in data["sub_intents"]:
+                sub_intents.append(self._parse_sub_intent(sub_data, question))
 
         try:
             intent = IntentType(data.get("intent", "unknown"))
@@ -79,4 +118,7 @@ class IntentDetector:
             entities=data.get("entities", {}),
             confidence=float(data.get("confidence", 0.5)),
             rephrased_question=data.get("rephrased_question", question),
+            is_compound=is_compound,
+            sub_intents=sub_intents,
         )
+

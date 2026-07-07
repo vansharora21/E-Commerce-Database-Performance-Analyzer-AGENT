@@ -1,0 +1,72 @@
+[
+  {
+    "question": "compare revenue this month vs last month and tell me which category drove the difference",
+    "is_compound": true,
+    "expected_sub_intents": [
+      {
+        "intent": "trend_comparison",
+        "time_period": "this_month"
+      },
+      {
+        "intent": "product_performance",
+        "time_period": "this_month"
+      }
+    ]
+  },
+  {
+    "question": "check how many orders are pending today and list the top 3 best selling products",
+    "is_compound": true,
+    "expected_sub_intents": [
+      {
+        "intent": "order_status",
+        "time_period": "today"
+      },
+      {
+        "intent": "top_n_ranking",
+        "time_period": "this_month"
+      }
+    ]
+  },
+  {
+    "question": "what is our total spent by users in Bangalore and show me the list of platinum tier users",
+    "is_compound": true,
+    "expected_sub_intents": [
+      {
+        "intent": "customer_insight",
+        "time_period": "all_time"
+      },
+      {
+        "intent": "customer_insight",
+        "time_period": "all_time"
+      }
+    ]
+  },
+  {
+    "question": "compare this week's sales vs last week and list the items sold count",
+    "is_compound": true,
+    "expected_sub_intents": [
+      {
+        "intent": "trend_comparison",
+        "time_period": "this_week"
+      },
+      {
+        "intent": "product_performance",
+        "time_period": "this_week"
+      }
+    ]
+  },
+  {
+    "question": "how many new users registered yesterday and what is the status of payment methods this week",
+    "is_compound": true,
+    "expected_sub_intents": [
+      {
+        "intent": "customer_insight",
+        "time_period": "yesterday"
+      },
+      {
+        "intent": "payment_analytics",
+        "time_period": "this_week"
+      }
+    ]
+  }
+]

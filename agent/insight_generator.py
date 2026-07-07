@@ -66,21 +66,45 @@ class InsightGenerator:
         self,
         question: str,
         intent: IntentResult,
-        execution: ExecutionResult,
+        execution: ExecutionResult | list[ExecutionResult],
     ) -> InsightResult:
-        primary_count = len(execution.primary_data) if isinstance(execution.primary_data, list) else 1
-        comparison_count = (
-            len(execution.comparison_data) if isinstance(execution.comparison_data, list) else 0
-        ) if execution.comparison_data else 0
+        if isinstance(execution, list):
+            data_sections = []
+            for idx, exec_res in enumerate(execution, 1):
+                p_count = len(exec_res.primary_data) if isinstance(exec_res.primary_data, list) else 1
+                c_count = (
+                    len(exec_res.comparison_data) if isinstance(exec_res.comparison_data, list) else 0
+                ) if exec_res.comparison_data else 0
+                sub_intent_name = intent.sub_intents[idx-1].intent.value if idx <= len(intent.sub_intents) else "unknown"
+
+                data_sections.append(
+                    f"\n=== SUB-STEP {idx} ({sub_intent_name}) ===\n"
+                    f"PRIMARY DATA ({p_count} rows):\n{self._fmt(exec_res.primary_data)}\n"
+                )
+                if exec_res.comparison_data:
+                    data_sections.append(
+                        f"COMPARISON DATA ({c_count} rows):\n{self._fmt(exec_res.comparison_data)}\n"
+                    )
+            primary_count = len(execution)
+            comparison_count = 0
+            primary_data_str = "\n".join(data_sections)
+            comparison_data_str = "[]"
+        else:
+            primary_count = len(execution.primary_data) if isinstance(execution.primary_data, list) else 1
+            comparison_count = (
+                len(execution.comparison_data) if isinstance(execution.comparison_data, list) else 0
+            ) if execution.comparison_data else 0
+            primary_data_str = self._fmt(execution.primary_data)
+            comparison_data_str = self._fmt(execution.comparison_data)
 
         prompt = _INSIGHT_PROMPT.format(
             question=question,
             intent=intent.intent.value,
             time_period=intent.time_period.value,
             primary_count=primary_count,
-            primary_data=self._fmt(execution.primary_data),
+            primary_data=primary_data_str,
             comparison_count=comparison_count,
-            comparison_data=self._fmt(execution.comparison_data),
+            comparison_data=comparison_data_str,
         )
 
         logger.debug("Insight generation → calling LLM…")
@@ -104,3 +128,4 @@ class InsightGenerator:
             data_quality_notes=data.get("data_quality_notes", []),
             chart_hint=data.get("chart_hint"),
         )
+
