@@ -71,7 +71,8 @@ Return ONLY raw JSON — no markdown, no explanation.
     "compare_previous": <true|false>
   }},
   "comparison": null,
-  "index_suggestions": ["<field1>"]
+  "index_suggestions": ["<field1>"],
+  "replan_reason": "<replan reason if feedback was provided and filters/date ranges were modified, e.g. 'loosened date filter' or 'expanded status query'. Otherwise null.>"
 }}
 
 Rules:
@@ -84,6 +85,8 @@ Rules:
 
 DB SCHEMA: {schema}
 INTENT: {intent}
+{feedback_section}
+{context_section}
 """
 
 
@@ -117,12 +120,39 @@ class QueryPlanner:
     def __init__(self) -> None:
         self._llm = LLMClient()
 
-    async def plan(self, intent: IntentResult) -> QueryPlanResult:
+    async def plan(
+        self,
+        intent: IntentResult,
+        feedback: Optional[str] = None,
+        previous_context: Optional[str] = None,
+    ) -> QueryPlanResult:
         today = datetime.utcnow().strftime("%Y-%m-%d")
+
+        feedback_section = ""
+        if feedback:
+            feedback_section = (
+                f"\n=== FEEDBACK FROM PREVIOUS RUN ===\n"
+                f"The previous plan returned 0 rows. Feedback: {feedback}\n"
+                f"Please loosen the filters/date ranges to expand the results, "
+                f"OR if 0 is a completely legitimate and expected business answer for this question, "
+                f"return the exact same plan so execution terminates.\n"
+            )
+
+        context_section = ""
+        if previous_context:
+            context_section = (
+                f"\n=== PREVIOUS STEP(S) EXECUTION CONTEXT ===\n"
+                f"Use this context (previous sub-questions and execution data) to inform this sub-plan. "
+                f"For example, filter by top categories or values discovered in previous steps if requested:\n"
+                f"{previous_context}\n"
+            )
+
         prompt = _PLANNER_PROMPT.format(
             today=today,
             schema=_DB_SCHEMA,
-            intent=intent.model_dump_json(indent=2)
+            intent=intent.model_dump_json(indent=2),
+            feedback_section=feedback_section,
+            context_section=context_section,
         )
 
         logger.debug("Query planner → calling LLM…")
@@ -155,4 +185,6 @@ class QueryPlanner:
             safety_passed=ok,
             safety_notes=notes,
             index_suggestions=data.get("index_suggestions", []),
+            replan_reason=data.get("replan_reason"),
         )
+

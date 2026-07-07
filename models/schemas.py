@@ -139,6 +139,8 @@ class IntentResult(BaseModel):
     entities: dict[str, Any] = Field(default_factory=dict)
     confidence: float = Field(ge=0.0, le=1.0)
     rephrased_question: str
+    is_compound: bool = False
+    sub_intents: list[IntentResult] = Field(default_factory=list)
 
 
 class QueryPlanResult(BaseModel):
@@ -147,6 +149,7 @@ class QueryPlanResult(BaseModel):
     safety_passed: bool = True
     safety_notes: list[str] = Field(default_factory=list)
     index_suggestions: list[str] = Field(default_factory=list)
+    replan_reason: Optional[str] = None
 
 
 class ExecutionResult(BaseModel):
@@ -203,3 +206,8 @@ class ErrorResponse(BaseModel):
     error: str
     detail: Optional[str] = None
     code: str = "AGENT_ERROR"
+
+
+# Rebuild recursive models for Pydantic v2 compatibility
+IntentResult.model_rebuild()
+

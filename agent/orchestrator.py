@@ -15,12 +15,13 @@ from __future__ import annotations
 import logging
 import time
 import asyncio
-from typing import Any
+from typing import Any, Optional
+import json
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from config import get_settings
-from models import AgentResponse, InsightResult, IntentType, TimePeriod
+from models import AgentResponse, InsightResult, IntentType, TimePeriod, IntentResult
 from .intent_detector       import IntentDetector
 from .query_planner         import QueryPlanner
 from .query_executor        import QueryExecutor
@@ -59,37 +60,157 @@ class AgentOrchestrator:
                 question, session, intent.intent, t_total
             )
 
-        # ── Stage 2: Query Planning ────────────────────────────────────────
-        pipeline_steps = [
-            f"[1] Intent: {intent.intent.value} ({intent.time_period.value})"
-            f" conf={intent.confidence:.0%}"
-            f" ({(time.monotonic()-t_total)*1000:.0f}ms)"
-        ]
+        pipeline_steps = []
+        if intent.is_compound:
+            pipeline_steps.append(
+                f"[1] Intent: Compound Question composed of {len(intent.sub_intents)} sub-intents"
+                f" ({(time.monotonic()-t_total)*1000:.0f}ms)"
+            )
+        else:
+            pipeline_steps.append(
+                f"[1] Intent: {intent.intent.value} ({intent.time_period.value})"
+                f" conf={intent.confidence:.0%}"
+                f" ({(time.monotonic()-t_total)*1000:.0f}ms)"
+            )
 
-        t0 = time.monotonic()
-        plan_result = await self._retry(self._query_planner.plan, intent)
-        pipeline_steps.append(
-            f"[2] Plan: {plan_result.primary.collection}.{plan_result.primary.operation}"
-            f" safety={'OK' if plan_result.safety_passed else 'BLOCKED'}"
-            f" ({(time.monotonic()-t0)*1000:.0f}ms)"
-        )
+        # Helper to execute plan with bounded re-planning loop
+        async def plan_and_execute_with_replan(
+            sub_intent: IntentResult,
+            step_prefix: str = "",
+            prev_context: Optional[str] = None
+        ) -> tuple[QueryPlanResult, ExecutionResult]:
+            attempts = 0
+            max_replan_attempts = 2
+            feedback = None
+            prev_primary = None
 
-        if not plan_result.safety_passed:
-            raise PermissionError("Query blocked: " + "; ".join(plan_result.safety_notes))
+            t0 = time.monotonic()
+            plan_res = await self._retry(
+                self._query_planner.plan,
+                sub_intent,
+                feedback=feedback,
+                previous_context=prev_context
+            )
+            plan_time_ms = (time.monotonic() - t0) * 1000
 
-        # ── Stage 3: Query Execution ───────────────────────────────────────
-        t0 = time.monotonic()
-        exec_result = await self._query_executor.execute(plan_result)
-        pipeline_steps.append(
-            f"[3] DB: {exec_result.row_count} rows in {exec_result.execution_time_ms:.0f}ms"
-        )
+            step_num = f"2{step_prefix}"
+            pipeline_steps.append(
+                f"[{step_num}] Plan: {plan_res.primary.collection}.{plan_res.primary.operation}"
+                f" safety={'OK' if plan_res.safety_passed else 'BLOCKED'}"
+                f" ({plan_time_ms:.0f}ms)"
+            )
 
-        # ── Stage 4: Insight Generation ────────────────────────────────────
-        t0 = time.monotonic()
-        insight = await self._retry(self._insight_gen.generate, question, intent, exec_result)
-        pipeline_steps.append(
-            f"[4] Insight: '{insight.headline}' ({(time.monotonic()-t0)*1000:.0f}ms)"
-        )
+            if not plan_res.safety_passed:
+                raise PermissionError("Query blocked: " + "; ".join(plan_res.safety_notes))
+
+            t0 = time.monotonic()
+            exec_res = await self._query_executor.execute(plan_res)
+            db_num = f"3{step_prefix}"
+            pipeline_steps.append(
+                f"[{db_num}] DB: {exec_res.row_count} rows in {exec_res.execution_time_ms:.0f}ms"
+            )
+
+            # Re-planning on failure (row_count == 0)
+            while exec_res.row_count == 0 and attempts < max_replan_attempts:
+                prev_primary = plan_res.primary
+                attempts += 1
+
+                feedback = (
+                    f"The previous plan on collection '{plan_res.primary.collection}' returned 0 rows. "
+                    f"Please loosen the filters/date range, or check a different range."
+                )
+
+                new_plan_res = await self._retry(
+                    self._query_planner.plan,
+                    sub_intent,
+                    feedback=feedback,
+                    previous_context=prev_context
+                )
+
+                # Check if the plan is identical to previous (legitimate zero/no change possible)
+                if prev_primary and new_plan_res.primary == prev_primary:
+                    logger.info(f"Re-plan attempt {attempts}: LLM returned identical plan. Stopping re-plan loop.")
+                    break
+
+                plan_res = new_plan_res
+                if not plan_res.safety_passed:
+                    raise PermissionError("Query blocked during re-plan: " + "; ".join(plan_res.safety_notes))
+
+                exec_res = await self._query_executor.execute(plan_res)
+
+                replan_desc = plan_res.replan_reason or "loosened filters"
+                if not step_prefix:
+                    replan_step_num = "2b" if attempts == 1 else "2c"
+                    db_replan_step_num = "3b" if attempts == 1 else "3c"
+                else:
+                    replan_step_num = f"2{step_prefix}-replan{attempts}"
+                    db_replan_step_num = f"3{step_prefix}-replan{attempts}"
+
+                pipeline_steps.append(
+                    f"[{replan_step_num}] Re-plan attempt {attempts}: {replan_desc}"
+                )
+                pipeline_steps.append(
+                    f"[{db_replan_step_num}] DB: {exec_res.row_count} rows"
+                )
+
+            return plan_res, exec_res
+
+        # ── Stage 2 & 3: Planning and Execution ────────────────────────────
+        if intent.is_compound:
+            exec_results = []
+            plan_results = []
+
+            for idx, sub_intent in enumerate(intent.sub_intents, 1):
+                step_suffix = chr(96 + idx)  # 1 -> 'a', 2 -> 'b', etc.
+                pipeline_steps.append(
+                    f"[1{step_suffix}] Sub-intent {idx}: {sub_intent.intent.value} ({sub_intent.time_period.value})"
+                    f" conf={sub_intent.confidence:.0%}"
+                )
+
+                # Build sequential context
+                context_lines = []
+                for prev_idx, (prev_sub, prev_plan, prev_exec) in enumerate(zip(intent.sub_intents[:idx-1], plan_results, exec_results), 1):
+                    context_lines.append(f"Sub-step {prev_idx} Question: {prev_sub.rephrased_question}")
+                    context_lines.append(f"Sub-step {prev_idx} Plan: collection={prev_plan.primary.collection}, operation={prev_plan.primary.operation}")
+                    preview = self._sanitise_preview(prev_exec.primary_data)
+                    context_lines.append(f"Sub-step {prev_idx} Result Data: {json.dumps(preview)}")
+
+                prev_context = "\n".join(context_lines) if context_lines else None
+
+                # Execute with re-plan support
+                sub_plan_res, sub_exec_res = await plan_and_execute_with_replan(
+                    sub_intent,
+                    step_prefix=step_suffix,
+                    prev_context=prev_context
+                )
+
+                plan_results.append(sub_plan_res)
+                exec_results.append(sub_exec_res)
+
+            # ── Stage 4: Insight Generation (Synthesised) ──────────────────
+            t0 = time.monotonic()
+            insight = await self._retry(self._insight_gen.generate, question, intent, exec_results)
+            pipeline_steps.append(
+                f"[4] Insight: '{insight.headline}' ({(time.monotonic()-t0)*1000:.0f}ms)"
+            )
+
+            primary_plan_res = plan_results[0]
+            primary_exec_res = exec_results[0]
+            raw_preview = self._sanitise_preview(primary_exec_res.primary_data)
+        else:
+            # Simple single execution
+            plan_result, exec_result = await plan_and_execute_with_replan(intent)
+
+            # ── Stage 4: Insight Generation ────────────────────────────────
+            t0 = time.monotonic()
+            insight = await self._retry(self._insight_gen.generate, question, intent, exec_result)
+            pipeline_steps.append(
+                f"[4] Insight: '{insight.headline}' ({(time.monotonic()-t0)*1000:.0f}ms)"
+            )
+
+            primary_plan_res = plan_result
+            primary_exec_res = exec_result
+            raw_preview = self._sanitise_preview(primary_exec_res.primary_data)
 
         total_ms = round((time.monotonic() - t_total) * 1000, 2)
         pipeline_steps.append(f"[DONE] {total_ms:.0f}ms total")
@@ -103,12 +224,13 @@ class AgentOrchestrator:
             intent=intent.intent,
             time_period=intent.time_period,
             insight=insight,
-            raw_results_preview=self._sanitise_preview(exec_result.primary_data),
+            raw_results_preview=raw_preview,
             execution_time_ms=total_ms,
             pipeline_steps=pipeline_steps,
-            index_suggestions=plan_result.index_suggestions,
+            index_suggestions=primary_plan_res.index_suggestions,
             is_conversational=False,
         )
+
 
     async def _handle_conversational(
         self, question: str, session, intent: IntentType, t_start: float
