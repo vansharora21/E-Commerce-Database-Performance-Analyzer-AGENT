@@ -21,7 +21,7 @@ import json
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from config import get_settings
-from models import AgentResponse, InsightResult, IntentType, TimePeriod, IntentResult
+from models import AgentResponse, InsightResult, IntentType, TimePeriod, IntentResult, QueryPlanResult, ExecutionResult
 from .intent_detector       import IntentDetector
 from .query_planner         import QueryPlanner
 from .query_executor        import QueryExecutor

@@ -59,18 +59,17 @@ class LLMClient:
         self._groq_key   = getattr(settings, "groq_api_key", "")
         self._temperature = settings.agent_temperature
 
+        # Always initialize both model names to prevent fallback AttributeErrors
+        self._groq_model = GROQ_MODELS[0]
+        self._gemini_model_name = settings.gemini_model
+
         # Initialise whichever provider is active
         if self._provider == "groq" and self._groq_key:
-            self._groq_model   = GROQ_MODELS[0]
-            self._gemini_model = None
             logger.info(f"LLM provider: Groq ({self._groq_model})")
         else:
             # Default: Gemini
             self._provider = "gemini"
             genai.configure(api_key=self._gemini_key)
-            self._gemini_model_name = settings.gemini_model
-            self._gemini_obj = genai.GenerativeModel(self._gemini_model_name)
-            self._groq_model = GROQ_MODELS[0]
             logger.info(f"LLM provider: Gemini ({self._gemini_model_name})")
 
     async def generate(self, prompt: str) -> str:

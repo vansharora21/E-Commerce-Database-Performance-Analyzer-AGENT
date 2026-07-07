@@ -169,6 +169,28 @@ class InsightResult(BaseModel):
     data_quality_notes: list[str] = Field(default_factory=list)
     chart_hint: Optional[Literal["bar", "line", "pie", "table", "number"]] = None
 
+    @field_validator("chart_hint", mode="before")
+    @classmethod
+    def coerce_chart_hint(cls, v):
+        if v is None:
+            return None
+        allowed = {"bar", "line", "pie", "table", "number"}
+        v_str = str(v).lower().strip()
+        if v_str in allowed:
+            return v_str
+        if "bar" in v_str:
+            return "bar"
+        if "line" in v_str:
+            return "line"
+        if "pie" in v_str:
+            return "pie"
+        if "table" in v_str:
+            return "table"
+        if "number" in v_str or "metric" in v_str or "value" in v_str:
+            return "number"
+        return None
+
+
 
 # ── Full Agent Response ───────────────────────────────────────────────────────
 
